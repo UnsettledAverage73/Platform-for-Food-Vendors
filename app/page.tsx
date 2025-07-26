@@ -41,7 +41,7 @@ export default function HomePage() {
               </div>
               <span className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent">
                 BazarBuddy
-              </span>
+              </span>e
             </div>
             <div className="flex items-center space-x-4">
               <Button variant="outline" asChild>

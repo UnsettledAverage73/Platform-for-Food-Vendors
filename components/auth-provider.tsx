@@ -45,40 +45,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Simulate API call
-      const mockUsers = [
-        {
-          id: "1",
-          email: "vendor@test.com",
-          password: "password",
-          name: "Raj Kumar",
-          role: "vendor" as const,
-          phone: "+91 9876543210",
-        },
-        {
-          id: "2",
-          email: "supplier@test.com",
-          password: "password",
-          name: "Priya Suppliers",
-          role: "supplier" as const,
-          phone: "+91 9876543211",
-        },
-      ]
-
-      const foundUser = mockUsers.find((u) => u.email === email && u.password === password)
-
-      if (foundUser) {
-        const { password: _, ...userWithoutPassword } = foundUser
-        setUser(userWithoutPassword)
-        localStorage.setItem("auth-token", "mock-token")
-        localStorage.setItem("user-data", JSON.stringify(userWithoutPassword))
-        return true
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const res = await fetch(`${API_URL}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        // You may want to fetch user details here if not returned
+        setUser({
+          id: "", // You can fetch user id from backend if needed
+          email,
+          name: "", // You can fetch user name from backend if needed
+          role: data.role,
+        });
+        localStorage.setItem("auth-token", data.token);
+        localStorage.setItem("user-data", JSON.stringify({
+          id: "",
+          email,
+          name: "",
+          role: data.role,
+        }));
+        return true;
       }
-      return false
+      return false;
     } catch (error) {
-      return false
+      return false;
     }
-  }
+  };
 
   const register = async (
     email: string,
@@ -88,23 +83,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     phone?: string,
   ): Promise<boolean> => {
     try {
-      // Simulate API call
-      const newUser = {
-        id: Date.now().toString(),
-        email,
-        name,
-        role,
-        phone,
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const res = await fetch(`${API_URL}/api/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name, role, phone }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        // Optionally, auto-login after registration
+        return await login(email, password);
       }
-
-      setUser(newUser)
-      localStorage.setItem("auth-token", "mock-token")
-      localStorage.setItem("user-data", JSON.stringify(newUser))
-      return true
+      return false;
     } catch (error) {
-      return false
+      return false;
     }
-  }
+  };
 
   const logout = () => {
     setUser(null)

@@ -72,66 +72,65 @@ export default function SupplierDashboard() {
       router.push("/login")
       return
     }
+    // Fetch products for the logged-in supplier
+    const fetchProducts = async () => {
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL
+        const token = localStorage.getItem("auth-token")
+        const res = await fetch(`${API_URL}/api/products`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        })
+        if (!res.ok) throw new Error("Failed to fetch products")
+        const data = await res.json()
+        setProducts(data.map((p: any) => ({
+          id: p._id,
+          name: p.name,
+          category: p.category,
+          price: p.price,
+          unit: p.unit,
+          stock: p.stock,
+          description: p.description,
+          rating: 0, // Not in backend yet
+          totalReviews: 0, // Not in backend yet
+        })))
+      } catch (err) {
+        setProducts([])
+      }
+    }
+    fetchProducts()
 
-    // Mock products data with ratings
-    setProducts([
-      {
-        id: "1",
-        name: "Fresh Tomatoes",
-        category: "Vegetables",
-        price: 40,
-        unit: "kg",
-        stock: 500,
-        description: "Fresh red tomatoes from local farms",
-        rating: 4.5,
-        totalReviews: 23,
-      },
-      {
-        id: "2",
-        name: "Onions",
-        category: "Vegetables",
-        price: 30,
-        unit: "kg",
-        stock: 300,
-        description: "Quality onions for cooking",
-        rating: 4.3,
-        totalReviews: 18,
-      },
-      {
-        id: "3",
-        name: "Basmati Rice",
-        category: "Grains",
-        price: 80,
-        unit: "kg",
-        stock: 200,
-        description: "Premium basmati rice",
-        rating: 4.8,
-        totalReviews: 45,
-      },
-    ])
-
-    // Mock orders data
-    setOrders([
-      {
-        id: "1",
-        vendorName: "Raj Kumar",
-        items: [
-          { productName: "Fresh Tomatoes", quantity: 10, price: 40 },
-          { productName: "Onions", quantity: 5, price: 30 },
-        ],
-        total: 550,
-        status: "pending",
-        deliveryDate: "2024-01-15",
-      },
-      {
-        id: "2",
-        vendorName: "Priya Devi",
-        items: [{ productName: "Basmati Rice", quantity: 25, price: 80 }],
-        total: 2000,
-        status: "confirmed",
-        deliveryDate: "2024-01-16",
-      },
-    ])
+    // Fetch orders for the logged-in supplier
+    const fetchOrders = async () => {
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL
+        const token = localStorage.getItem("auth-token")
+        const res = await fetch(`${API_URL}/api/supplierOrders`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        })
+        if (!res.ok) throw new Error("Failed to fetch orders")
+        const data = await res.json()
+        setOrders(data.map((o: any) => ({
+          id: o._id,
+          vendorName: o.userId?.name || "Vendor",
+          items: o.items.map((item: any) => ({
+            productName: item.productName,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          total: o.items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0),
+          status: o.status,
+          deliveryDate: o.deliveryDate ? new Date(o.deliveryDate).toLocaleDateString() : "",
+          rejectionReason: o.rejectionReason,
+        })))
+      } catch (err) {
+        setOrders([])
+      }
+    }
+    fetchOrders()
   }, [user, router])
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,7 +161,8 @@ export default function SupplierDashboard() {
     }
   }
 
-  const handleAddProduct = () => {
+  // Add product using backend
+  const handleAddProduct = async () => {
     if (!newProduct.name || !newProduct.category || !newProduct.price) {
       toast({
         title: "Missing required fields",
@@ -171,39 +171,98 @@ export default function SupplierDashboard() {
       })
       return
     }
-
-    const product: Product = {
-      id: Date.now().toString(),
-      name: newProduct.name,
-      category: newProduct.category,
-      price: Number.parseFloat(newProduct.price),
-      unit: newProduct.unit,
-      stock: Number.parseInt(newProduct.stock),
-      description: newProduct.description,
-      image: newProduct.image ? URL.createObjectURL(newProduct.image) : undefined,
-      rating: 0,
-      totalReviews: 0,
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL
+      const token = localStorage.getItem("auth-token")
+      const res = await fetch(`${API_URL}/api/products`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: newProduct.name,
+          category: newProduct.category,
+          price: Number.parseFloat(newProduct.price),
+          unit: newProduct.unit,
+          stock: Number.parseInt(newProduct.stock),
+          description: newProduct.description,
+        }),
+      })
+      if (!res.ok) throw new Error("Failed to add product")
+      const data = await res.json()
+      setProducts([...products, {
+        id: data.product._id,
+        name: data.product.name,
+        category: data.product.category,
+        price: data.product.price,
+        unit: data.product.unit,
+        stock: data.product.stock,
+        description: data.product.description,
+        rating: 0,
+        totalReviews: 0,
+      }])
+      setNewProduct({
+        name: "",
+        category: "",
+        price: "",
+        unit: "",
+        stock: "",
+        description: "",
+        image: null,
+      })
+      setIsAddProductOpen(false)
+      toast({ title: "Product added successfully!" })
+    } catch (err) {
+      toast({ title: "Failed to add product", variant: "destructive" })
     }
-
-    setProducts([...products, product])
-    setNewProduct({
-      name: "",
-      category: "",
-      price: "",
-      unit: "",
-      stock: "",
-      description: "",
-      image: null,
-    })
-    setIsAddProductOpen(false)
-
-    toast({
-      title: "Product added successfully!",
-      description: "Your product has been added to the catalog.",
-    })
   }
 
-  const handleOrderAction = (orderId: string, action: "confirmed" | "rejected") => {
+  // Edit product using backend
+  const handleEditProduct = async (productId: string, updatedFields: Partial<Product>) => {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL
+      const token = localStorage.getItem("auth-token")
+      const res = await fetch(`${API_URL}/api/products/${productId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatedFields),
+      })
+      if (!res.ok) throw new Error("Failed to update product")
+      const data = await res.json()
+      setProducts(products.map((p) =>
+        p.id === productId ? { ...p, ...data.product } : p
+      ))
+      toast({ title: "Product updated successfully!" })
+    } catch (err) {
+      toast({ title: "Failed to update product", variant: "destructive" })
+    }
+  }
+
+  // Delete product using backend
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL
+      const token = localStorage.getItem("auth-token")
+      const res = await fetch(`${API_URL}/api/products/${productId}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      })
+      if (!res.ok) throw new Error("Failed to delete product")
+      setProducts(products.filter((p) => p.id !== productId))
+      toast({ title: "Product deleted successfully!" })
+    } catch (err) {
+      toast({ title: "Failed to delete product", variant: "destructive" })
+    }
+  }
+
+  // Update order status using backend
+  const handleOrderAction = async (orderId: string, action: "confirmed" | "rejected") => {
     if (action === "rejected" && !rejectionReason.trim()) {
       toast({
         title: "Rejection reason required",
@@ -212,26 +271,38 @@ export default function SupplierDashboard() {
       })
       return
     }
-
-    setOrders(
-      orders.map((order) =>
-        order.id === orderId
-          ? {
-              ...order,
-              status: action,
-              rejectionReason: action === "rejected" ? rejectionReason : undefined,
-            }
-          : order,
-      ),
-    )
-
-    toast({
-      title: `Order ${action}!`,
-      description: `Order #${orderId} has been ${action}.`,
-    })
-
-    setRejectOrderId("")
-    setRejectionReason("")
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL
+      const token = localStorage.getItem("auth-token")
+      const res = await fetch(`${API_URL}/api/supplierOrders/${orderId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: action }),
+      })
+      if (!res.ok) throw new Error("Failed to update order status")
+      setOrders(
+        orders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: action,
+                rejectionReason: action === "rejected" ? rejectionReason : undefined,
+              }
+            : order,
+        ),
+      )
+      toast({
+        title: `Order ${action}!`,
+        description: `Order #${orderId} has been ${action}.`,
+      })
+      setRejectOrderId("")
+      setRejectionReason("")
+    } catch (err) {
+      toast({ title: "Failed to update order status", variant: "destructive" })
+    }
   }
 
   const handleLogout = () => {
@@ -526,10 +597,10 @@ export default function SupplierDashboard() {
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => handleEditProduct(product.id, { name: "New Name", category: "New Category", price: 100, unit: "kg", stock: 100, description: "New Description" })}>
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => handleDeleteProduct(product.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>

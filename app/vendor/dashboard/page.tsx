@@ -57,112 +57,39 @@ export default function VendorDashboard() {
       return
     }
 
-    // Mock suppliers data with more details
-    setSuppliers([
-      {
-        id: "1",
-        name: "Fresh Vegetables Co.",
-        rating: 4.5,
-        categories: ["Vegetables", "Fruits"],
-        location: "Mumbai",
-        verified: true,
-        totalProducts: 45,
-        avgPrice: 35,
-        deliveryTime: "Same Day",
-      },
-      {
-        id: "2",
-        name: "Spice Masters",
-        rating: 4.8,
-        categories: ["Spices", "Masalas"],
-        location: "Delhi",
-        verified: true,
-        totalProducts: 32,
-        avgPrice: 120,
-        deliveryTime: "1-2 Days",
-      },
-      {
-        id: "3",
-        name: "Grain Suppliers Ltd",
-        rating: 4.2,
-        categories: ["Rice", "Wheat", "Pulses"],
-        location: "Pune",
-        verified: true,
-        totalProducts: 28,
-        avgPrice: 65,
-        deliveryTime: "2-3 Days",
-      },
-      {
-        id: "4",
-        name: "Oil & Ghee Store",
-        rating: 4.6,
-        categories: ["Cooking Oil", "Ghee"],
-        location: "Bangalore",
-        verified: true,
-        totalProducts: 18,
-        avgPrice: 140,
-        deliveryTime: "1-2 Days",
-      },
-    ])
-
-    // Mock products data
-    setProducts([
-      {
-        id: "1",
-        name: "Fresh Tomatoes",
-        price: 40,
-        unit: "kg",
-        supplierId: "1",
-        supplierName: "Fresh Vegetables Co.",
-        category: "Vegetables",
-        rating: 4.5,
-        inStock: true,
-      },
-      {
-        id: "2",
-        name: "Onions",
-        price: 30,
-        unit: "kg",
-        supplierId: "1",
-        supplierName: "Fresh Vegetables Co.",
-        category: "Vegetables",
-        rating: 4.3,
-        inStock: true,
-      },
-      {
-        id: "3",
-        name: "Turmeric Powder",
-        price: 120,
-        unit: "kg",
-        supplierId: "2",
-        supplierName: "Spice Masters",
-        category: "Spices",
-        rating: 4.8,
-        inStock: true,
-      },
-      {
-        id: "4",
-        name: "Basmati Rice",
-        price: 80,
-        unit: "kg",
-        supplierId: "3",
-        supplierName: "Grain Suppliers Ltd",
-        category: "Rice",
-        rating: 4.2,
-        inStock: true,
-      },
-      {
-        id: "5",
-        name: "Sunflower Oil",
-        price: 140,
-        unit: "liter",
-        supplierId: "4",
-        supplierName: "Oil & Ghee Store",
-        category: "Oil",
-        rating: 4.6,
-        inStock: true,
-      },
-    ])
+    // Fetch suppliers from backend
+    const fetchSuppliers = async () => {
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL
+        const token = localStorage.getItem("auth-token")
+        const res = await fetch(`${API_URL}/api/suppliers`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        })
+        if (!res.ok) throw new Error("Failed to fetch suppliers")
+        const data = await res.json()
+        // Map backend fields to frontend Supplier interface
+        setSuppliers(
+          data.map((s: any) => ({
+            id: s._id,
+            name: s.name,
+            rating: s.rating || 0,
+            categories: s.categories || [],
+            location: s.location || "",
+            verified: s.verified || false,
+            totalProducts: s.totalProducts || 0, // You may want to fetch this separately
+            avgPrice: s.avgPrice || 0, // You may want to fetch this separately
+            deliveryTime: s.deliveryTime || "",
+          }))
+        )
+      } catch (err) {
+        setSuppliers([])
+      }
+    }
+    fetchSuppliers()
+    // Remove mock products for now
+    setProducts([])
   }, [user, router])
 
   const filteredSuppliers = suppliers.filter((supplier) => {
