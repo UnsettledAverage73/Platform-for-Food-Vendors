@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/components/auth-provider"
+import { useLanguage } from "@/components/language-provider"
+import { LanguageSelector } from "@/components/language-selector"
 import { useToast } from "@/hooks/use-toast"
 import { ShoppingCart, Eye, EyeOff } from "lucide-react"
 
@@ -19,6 +21,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
+  const { t } = useLanguage()
   const { toast } = useToast()
   const router = useRouter()
 
@@ -30,22 +33,21 @@ export default function LoginPage() {
       const success = await login(email, password)
       if (success) {
         toast({
-          title: "Login successful!",
-          description: "Welcome back to BazarBuddy",
+          title: t("notifications.loginSuccessful"),
+          description: t("notifications.welcomeBack"),
         })
-        // Redirect based on user role will be handled by auth provider
         router.push("/dashboard")
       } else {
         toast({
-          title: "Login failed",
-          description: "Invalid email or password",
+          title: t("notifications.loginFailed"),
+          description: t("notifications.invalidCredentials"),
           variant: "destructive",
         })
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
+        title: t("common.error"),
+        description: t("notifications.somethingWentWrong"),
         variant: "destructive",
       })
     } finally {
@@ -57,23 +59,26 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center">
-              <ShoppingCart className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center">
+                <ShoppingCart className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-2xl font-bold">BazarBuddy</span>
             </div>
-            <span className="text-2xl font-bold">BazarBuddy</span>
+            <LanguageSelector />
           </div>
-          <CardTitle>Welcome Back</CardTitle>
-          <CardDescription>Sign in to your account to continue</CardDescription>
+          <CardTitle>{t("auth.welcomeBack")}</CardTitle>
+          <CardDescription>{t("auth.signInToAccount")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("auth.email")}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder={t("auth.enterEmail")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -81,12 +86,12 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("auth.password")}</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
+                  placeholder={t("auth.enterPassword")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -104,27 +109,27 @@ export default function LoginPage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
+              {loading ? t("auth.signingIn") : t("auth.signIn")}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm">
             <p className="text-gray-600">
-              Don't have an account?{" "}
+              {t("auth.dontHaveAccount")}{" "}
               <Link href="/register" className="text-orange-500 hover:underline">
-                Sign up
+                {t("auth.signUp")}
               </Link>
             </p>
           </div>
 
           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800 font-medium mb-2">Demo Accounts:</p>
+            <p className="text-sm text-blue-800 font-medium mb-2">{t("auth.demoAccounts")}:</p>
             <div className="text-xs text-blue-700 space-y-1">
               <p>
-                <strong>Vendor:</strong> vendor@test.com / password
+                <strong>{t("auth.vendor")}:</strong> vendor@test.com / password
               </p>
               <p>
-                <strong>Supplier:</strong> supplier@test.com / password
+                <strong>{t("auth.supplier")}:</strong> supplier@test.com / password
               </p>
             </div>
           </div>

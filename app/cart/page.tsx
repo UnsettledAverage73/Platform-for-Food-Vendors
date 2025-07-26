@@ -11,7 +11,18 @@ import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ShoppingCart, Minus, Plus, Trash2, CalendarIcon, ArrowLeft } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  ShoppingCart,
+  Minus,
+  Plus,
+  Trash2,
+  CalendarIcon,
+  ArrowLeft,
+  Users,
+  CreditCard,
+  CheckCircle,
+} from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -27,6 +38,15 @@ interface CartItem {
   maxStock: number
 }
 
+interface GroupOrder {
+  id: string
+  name: string
+  members: number
+  totalAmount: number
+  discount: number
+  status: "active" | "closed"
+}
+
 export default function CartPage() {
   const { user } = useAuth()
   const router = useRouter()
@@ -34,6 +54,13 @@ export default function CartPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [isGroupOrder, setIsGroupOrder] = useState(false)
   const [deliveryDate, setDeliveryDate] = useState<Date>()
+  const [activeGroups, setActiveGroups] = useState<GroupOrder[]>([])
+  const [selectedGroup, setSelectedGroup] = useState<string>("")
+  const [showPayment, setShowPayment] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState("upi")
+  const [upiId, setUpiId] = useState("")
+  const [processing, setProcessing] = useState(false)
+  const [orderPlaced, setOrderPlaced] = useState(false)
 
   useEffect(() => {
     if (!user || user.role !== "vendor") {
@@ -71,6 +98,26 @@ export default function CartPage() {
         maxStock: 200,
       },
     ])
+
+    // Mock active group orders
+    setActiveGroups([
+      {
+        id: "1",
+        name: "Mumbai Street Vendors Group",
+        members: 12,
+        totalAmount: 25000,
+        discount: 8,
+        status: "active",
+      },
+      {
+        id: "2",
+        name: "Chaat Corner Alliance",
+        members: 8,
+        totalAmount: 18000,
+        discount: 5,
+        status: "active",
+      },
+    ])
   }, [user, router])
 
   const updateQuantity = (id: string, newQuantity: number) => {
@@ -95,7 +142,20 @@ export default function CartPage() {
     return cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
   }
 
-  const handlePlaceOrder = () => {
+  const getGroupDiscount = () => {
+    if (!isGroupOrder || !selectedGroup) return 0
+    const group = activeGroups.find((g) => g.id === selectedGroup)
+    return group ? Math.floor(getTotalAmount() * (group.discount / 100)) : 0
+  }
+
+  const getFinalAmount = () => {
+    const subtotal = getTotalAmount()
+    const deliveryFee = 50
+    const groupDiscount = getGroupDiscount()
+    return subtotal + deliveryFee - groupDiscount
+  }
+
+  const handleProceedToPayment = () => {
     if (!deliveryDate) {
       toast({
         title: "Please select delivery date",
@@ -114,15 +174,37 @@ export default function CartPage() {
       return
     }
 
-    // Simulate order placement
-    toast({
-      title: "Order placed successfully!",
-      description: `Your ${isGroupOrder ? "group " : ""}order has been sent to suppliers`,
-    })
+    setShowPayment(true)
+  }
 
-    // Clear cart and redirect
-    setCartItems([])
-    router.push("/vendor/orders")
+  const handlePayment = async () => {
+    if (paymentMethod === "upi" && !upiId) {
+      toast({
+        title: "UPI ID required",
+        description: "Please enter your UPI ID",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setProcessing(true)
+
+    // Simulate payment processing
+    setTimeout(() => {
+      setProcessing(false)
+      setOrderPlaced(true)
+
+      toast({
+        title: "Payment successful!",
+        description: `Your ${isGroupOrder ? "group " : ""}order has been placed successfully`,
+      })
+
+      // Clear cart after successful payment
+      setTimeout(() => {
+        setCartItems([])
+        router.push("/vendor/orders")
+      }, 2000)
+    }, 3000)
   }
 
   if (!user) return null
@@ -246,14 +328,34 @@ export default function CartPage() {
                   <Switch id="group-order" checked={isGroupOrder} onCheckedChange={setIsGroupOrder} />
                 </div>
 
+                {/* Active Groups */}
                 {isGroupOrder && (
-                  <div className="p-3 bg-green-50 rounded-lg">
-                    <Badge variant="secondary" className="mb-2">
-                      Group Order Active
-                    </Badge>
-                    <p className="text-sm text-green-700">
-                      You'll get better pricing when other vendors join this order
-                    </p>
+                  <div className="space-y-3">
+                    <Label>Join Active Group</Label>
+                    {activeGroups.map((group) => (
+                      <div
+                        key={group.id}
+                        className={cn(
+                          "p-3 border rounded-lg cursor-pointer transition-colors",
+                          selectedGroup === group.id ? "border-orange-500 bg-orange-50" : "border-gray-200",
+                        )}
+                        onClick={() => setSelectedGroup(selectedGroup === group.id ? "" : group.id)}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium">{group.name}</h4>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+                              <span className="flex items-center">
+                                <Users className="w-4 h-4 mr-1" />
+                                {group.members} members
+                              </span>
+                              <span>₹{group.totalAmount.toLocaleString()}</span>
+                            </div>
+                          </div>
+                          <Badge variant="secondary">{group.discount}% off</Badge>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -296,27 +398,114 @@ export default function CartPage() {
                       <span>Delivery Fee</span>
                       <span>₹50</span>
                     </div>
-                    {isGroupOrder && (
+                    {isGroupOrder && selectedGroup && (
                       <div className="flex justify-between text-sm text-green-600">
                         <span>Group Discount</span>
-                        <span>-₹{Math.floor(getTotalAmount() * 0.05)}</span>
+                        <span>-₹{getGroupDiscount()}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-medium text-lg border-t pt-2">
                       <span>Total</span>
-                      <span>₹{getTotalAmount() + 50 - (isGroupOrder ? Math.floor(getTotalAmount() * 0.05) : 0)}</span>
+                      <span>₹{getFinalAmount()}</span>
                     </div>
                   </div>
                 </div>
 
-                <Button className="w-full" onClick={handlePlaceOrder} disabled={cartItems.length === 0}>
-                  Place Order
+                <Button className="w-full" onClick={handleProceedToPayment} disabled={cartItems.length === 0}>
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Proceed to Payment
                 </Button>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPayment} onOpenChange={setShowPayment}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Payment</DialogTitle>
+            <DialogDescription>Complete your payment to place the order</DialogDescription>
+          </DialogHeader>
+
+          {!orderPlaced ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span>Total Amount</span>
+                  <span className="font-bold text-lg">₹{getFinalAmount()}</span>
+                </div>
+                {isGroupOrder && selectedGroup && (
+                  <p className="text-sm text-green-600">Group discount applied: ₹{getGroupDiscount()} off</p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <Label>Payment Method</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="upi"
+                      name="payment"
+                      value="upi"
+                      checked={paymentMethod === "upi"}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                    />
+                    <Label htmlFor="upi">UPI Payment</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      id="card"
+                      name="payment"
+                      value="card"
+                      checked={paymentMethod === "card"}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                    />
+                    <Label htmlFor="card">Credit/Debit Card</Label>
+                  </div>
+                </div>
+              </div>
+
+              {paymentMethod === "upi" && (
+                <div>
+                  <Label htmlFor="upi-id">UPI ID</Label>
+                  <Input
+                    id="upi-id"
+                    placeholder="yourname@upi"
+                    value={upiId}
+                    onChange={(e) => setUpiId(e.target.value)}
+                    className="mt-2"
+                  />
+                </div>
+              )}
+
+              <Button className="w-full" onClick={handlePayment} disabled={processing}>
+                {processing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Processing Payment...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Pay ₹{getFinalAmount()}
+                  </>
+                )}
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Payment Successful!</h3>
+              <p className="text-gray-600 mb-4">Your order has been placed and sent to suppliers for confirmation.</p>
+              <p className="text-sm text-gray-500">Redirecting to orders page...</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -3,12 +3,16 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
+import { useLanguage } from "@/components/language-provider"
+import { LanguageSelector } from "@/components/language-selector"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ShoppingCart, Search, Star, Package, LogOut, User, ShoppingBag } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ShoppingCart, Search, Star, Package, LogOut, User, ShoppingBag, BarChart3 } from "lucide-react"
 import Link from "next/link"
 
 interface Supplier {
@@ -18,14 +22,34 @@ interface Supplier {
   categories: string[]
   location: string
   verified: boolean
+  totalProducts: number
+  avgPrice: number
+  deliveryTime: string
+}
+
+interface Product {
+  id: string
+  name: string
+  price: number
+  unit: string
+  supplierId: string
+  supplierName: string
+  category: string
+  rating: number
+  inStock: boolean
 }
 
 export default function VendorDashboard() {
   const { user, logout } = useAuth()
+  const { t } = useLanguage()
   const router = useRouter()
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
+  const [sortBy, setSortBy] = useState("rating")
+  const [showComparison, setShowComparison] = useState(false)
+  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([])
 
   useEffect(() => {
     if (!user || user.role !== "vendor") {
@@ -33,7 +57,7 @@ export default function VendorDashboard() {
       return
     }
 
-    // Mock suppliers data
+    // Mock suppliers data with more details
     setSuppliers([
       {
         id: "1",
@@ -42,6 +66,9 @@ export default function VendorDashboard() {
         categories: ["Vegetables", "Fruits"],
         location: "Mumbai",
         verified: true,
+        totalProducts: 45,
+        avgPrice: 35,
+        deliveryTime: "Same Day",
       },
       {
         id: "2",
@@ -50,6 +77,9 @@ export default function VendorDashboard() {
         categories: ["Spices", "Masalas"],
         location: "Delhi",
         verified: true,
+        totalProducts: 32,
+        avgPrice: 120,
+        deliveryTime: "1-2 Days",
       },
       {
         id: "3",
@@ -58,6 +88,9 @@ export default function VendorDashboard() {
         categories: ["Rice", "Wheat", "Pulses"],
         location: "Pune",
         verified: true,
+        totalProducts: 28,
+        avgPrice: 65,
+        deliveryTime: "2-3 Days",
       },
       {
         id: "4",
@@ -66,6 +99,68 @@ export default function VendorDashboard() {
         categories: ["Cooking Oil", "Ghee"],
         location: "Bangalore",
         verified: true,
+        totalProducts: 18,
+        avgPrice: 140,
+        deliveryTime: "1-2 Days",
+      },
+    ])
+
+    // Mock products data
+    setProducts([
+      {
+        id: "1",
+        name: "Fresh Tomatoes",
+        price: 40,
+        unit: "kg",
+        supplierId: "1",
+        supplierName: "Fresh Vegetables Co.",
+        category: "Vegetables",
+        rating: 4.5,
+        inStock: true,
+      },
+      {
+        id: "2",
+        name: "Onions",
+        price: 30,
+        unit: "kg",
+        supplierId: "1",
+        supplierName: "Fresh Vegetables Co.",
+        category: "Vegetables",
+        rating: 4.3,
+        inStock: true,
+      },
+      {
+        id: "3",
+        name: "Turmeric Powder",
+        price: 120,
+        unit: "kg",
+        supplierId: "2",
+        supplierName: "Spice Masters",
+        category: "Spices",
+        rating: 4.8,
+        inStock: true,
+      },
+      {
+        id: "4",
+        name: "Basmati Rice",
+        price: 80,
+        unit: "kg",
+        supplierId: "3",
+        supplierName: "Grain Suppliers Ltd",
+        category: "Rice",
+        rating: 4.2,
+        inStock: true,
+      },
+      {
+        id: "5",
+        name: "Sunflower Oil",
+        price: 140,
+        unit: "liter",
+        supplierId: "4",
+        supplierName: "Oil & Ghee Store",
+        category: "Oil",
+        rating: 4.6,
+        inStock: true,
       },
     ])
   }, [user, router])
@@ -77,6 +172,26 @@ export default function VendorDashboard() {
     const matchesCategory = categoryFilter === "all" || supplier.categories.includes(categoryFilter)
     return matchesSearch && matchesCategory
   })
+
+  const sortedSuppliers = [...filteredSuppliers].sort((a, b) => {
+    switch (sortBy) {
+      case "rating":
+        return b.rating - a.rating
+      case "price":
+        return a.avgPrice - b.avgPrice
+      case "delivery":
+        return a.deliveryTime.localeCompare(b.deliveryTime)
+      default:
+        return 0
+    }
+  })
+
+  const handleSupplierSelect = (supplierId: string) => {
+    setSelectedSuppliers(
+      (prev) =>
+        prev.includes(supplierId) ? prev.filter((id) => id !== supplierId) : [...prev, supplierId].slice(0, 3), // Max 3 suppliers for comparison
+    )
+  }
 
   const handleLogout = () => {
     logout()
@@ -98,31 +213,32 @@ export default function VendorDashboard() {
                 </div>
                 <h1 className="text-2xl font-bold text-gray-900">BazarBuddy</h1>
               </div>
-              <Badge variant="secondary">Vendor Dashboard</Badge>
+              <Badge variant="secondary">{t("supplier.supplierDashboard")}</Badge>
             </div>
 
             <div className="flex items-center space-x-4">
+              <LanguageSelector />
               <Button variant="outline" size="sm" asChild>
                 <Link href="/cart">
                   <ShoppingBag className="w-4 h-4 mr-2" />
-                  Cart
+                  {t("nav.cart")}
                 </Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
                 <Link href="/vendor/orders">
                   <Package className="w-4 h-4 mr-2" />
-                  Orders
+                  {t("nav.orders")}
                 </Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
                 <Link href="/vendor/profile">
                   <User className="w-4 h-4 mr-2" />
-                  Profile
+                  {t("nav.profile")}
                 </Link>
               </Button>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
-                Logout
+                {t("nav.logout")}
               </Button>
             </div>
           </div>
@@ -132,52 +248,76 @@ export default function VendorDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, {user.name}!</h2>
-          <p className="text-gray-600">Find trusted suppliers for your street food business</p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            {t("dashboard.welcomeBack")}, {user.name}!
+          </h2>
+          <p className="text-gray-600">{t("dashboard.findTrustedSuppliers")}</p>
         </div>
 
         {/* Search and Filter */}
-        <div className="mb-8 flex flex-col sm:flex-row gap-4">
+        <div className="mb-8 flex flex-col lg:flex-row gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
-              placeholder="Search suppliers or products..."
+              placeholder={t("dashboard.searchSuppliers")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Filter by category" />
+            <SelectTrigger className="w-full lg:w-48">
+              <SelectValue placeholder={t("dashboard.filterByCategory")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="Vegetables">Vegetables</SelectItem>
-              <SelectItem value="Fruits">Fruits</SelectItem>
-              <SelectItem value="Spices">Spices</SelectItem>
-              <SelectItem value="Rice">Rice & Grains</SelectItem>
-              <SelectItem value="Cooking Oil">Cooking Oil</SelectItem>
+              <SelectItem value="all">{t("dashboard.allCategories")}</SelectItem>
+              <SelectItem value="Vegetables">{t("dashboard.vegetables")}</SelectItem>
+              <SelectItem value="Fruits">{t("dashboard.fruits")}</SelectItem>
+              <SelectItem value="Spices">{t("dashboard.spices")}</SelectItem>
+              <SelectItem value="Rice">{t("dashboard.riceGrains")}</SelectItem>
+              <SelectItem value="Cooking Oil">{t("dashboard.cookingOil")}</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-full lg:w-48">
+              <SelectValue placeholder={t("common.sort")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="rating">{t("dashboard.rating")}</SelectItem>
+              <SelectItem value="price">{t("dashboard.price")}</SelectItem>
+              <SelectItem value="delivery">{t("dashboard.deliveryTime")}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={() => setShowComparison(true)} disabled={selectedSuppliers.length < 2}>
+            <BarChart3 className="w-4 h-4 mr-2" />
+            {t("dashboard.compare")} ({selectedSuppliers.length})
+          </Button>
         </div>
 
         {/* Suppliers Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredSuppliers.map((supplier) => (
+          {sortedSuppliers.map((supplier) => (
             <Card key={supplier.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">{supplier.name}</CardTitle>
-                    <CardDescription className="flex items-center mt-1">
-                      <span className="mr-2">{supplier.location}</span>
-                      {supplier.verified && (
-                        <Badge variant="secondary" className="text-xs">
-                          Verified
-                        </Badge>
-                      )}
-                    </CardDescription>
+                  <div className="flex items-start space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedSuppliers.includes(supplier.id)}
+                      onChange={() => handleSupplierSelect(supplier.id)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <CardTitle className="text-lg">{supplier.name}</CardTitle>
+                      <CardDescription className="flex items-center mt-1">
+                        <span className="mr-2">{supplier.location}</span>
+                        {supplier.verified && (
+                          <Badge variant="secondary" className="text-xs">
+                            {t("dashboard.verified")}
+                          </Badge>
+                        )}
+                      </CardDescription>
+                    </div>
                   </div>
                   <div className="flex items-center">
                     <Star className="w-4 h-4 text-yellow-400 fill-current" />
@@ -186,29 +326,105 @@ export default function VendorDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="mb-4">
-                  <p className="text-sm text-gray-600 mb-2">Categories:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {supplier.categories.map((category) => (
-                      <Badge key={category} variant="outline" className="text-xs">
-                        {category}
-                      </Badge>
-                    ))}
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">{t("dashboard.categories")}:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {supplier.categories.map((category) => (
+                        <Badge key={category} variant="outline" className="text-xs">
+                          {category}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-600">{t("dashboard.products")}</p>
+                      <p className="font-medium">{supplier.totalProducts}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-600">{t("dashboard.avgPrice")}</p>
+                      <p className="font-medium">₹{supplier.avgPrice}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-gray-600">{t("dashboard.delivery")}</p>
+                      <p className="font-medium">{supplier.deliveryTime}</p>
+                    </div>
                   </div>
                 </div>
-                <Button className="w-full" asChild>
-                  <Link href={`/supplier/${supplier.id}/products`}>View Products</Link>
+
+                <Button className="w-full mt-4" asChild>
+                  <Link href={`/supplier/${supplier.id}/products`}>{t("dashboard.viewProducts")}</Link>
                 </Button>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {filteredSuppliers.length === 0 && (
+        {/* Comparison Dialog */}
+        <Dialog open={showComparison} onOpenChange={setShowComparison}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>
+                {t("dashboard.compare")} {t("dashboard.suppliers")}
+              </DialogTitle>
+              <DialogDescription>Compare selected suppliers side by side</DialogDescription>
+            </DialogHeader>
+
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Supplier</TableHead>
+                    <TableHead>{t("dashboard.rating")}</TableHead>
+                    <TableHead>{t("dashboard.products")}</TableHead>
+                    <TableHead>{t("dashboard.avgPrice")}</TableHead>
+                    <TableHead>{t("dashboard.delivery")}</TableHead>
+                    <TableHead>Location</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedSuppliers.map((supplierId) => {
+                    const supplier = suppliers.find((s) => s.id === supplierId)
+                    if (!supplier) return null
+
+                    return (
+                      <TableRow key={supplier.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center space-x-2">
+                            <span>{supplier.name}</span>
+                            {supplier.verified && (
+                              <Badge variant="secondary" className="text-xs">
+                                {t("dashboard.verified")}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Star className="w-4 h-4 text-yellow-400 fill-current mr-1" />
+                            {supplier.rating}
+                          </div>
+                        </TableCell>
+                        <TableCell>{supplier.totalProducts}</TableCell>
+                        <TableCell>₹{supplier.avgPrice}</TableCell>
+                        <TableCell>{supplier.deliveryTime}</TableCell>
+                        <TableCell>{supplier.location}</TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {sortedSuppliers.length === 0 && (
           <div className="text-center py-12">
             <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No suppliers found</h3>
-            <p className="text-gray-600">Try adjusting your search or filter criteria</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t("dashboard.noSuppliersFound")}</h3>
+            <p className="text-gray-600">{t("dashboard.adjustSearchCriteria")}</p>
           </div>
         )}
       </div>

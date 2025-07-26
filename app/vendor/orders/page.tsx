@@ -1,5 +1,7 @@
 "use client"
 
+import { cn } from "@/lib/utils"
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/components/auth-provider"
@@ -7,6 +9,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -15,26 +20,34 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { ShoppingCart, ArrowLeft, Star, Package, Clock, CheckCircle, XCircle } from "lucide-react"
+import { ShoppingCart, ArrowLeft, Star, Package, Clock, CheckCircle, XCircle, Truck } from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
 
 interface Order {
   id: string
   supplierName: string
   items: { productName: string; quantity: number; price: number; unit: string }[]
   total: number
-  status: "pending" | "confirmed" | "rejected" | "delivered"
+  status: "pending" | "confirmed" | "rejected" | "shipped" | "delivered"
   orderDate: string
   deliveryDate: string
   isGroupOrder: boolean
   rating?: number
+  review?: string
+  trackingSteps: { step: string; completed: boolean; timestamp?: string }[]
+  rejectionReason?: string
 }
 
 export default function VendorOrdersPage() {
   const { user } = useAuth()
   const router = useRouter()
+  const { toast } = useToast()
   const [orders, setOrders] = useState<Order[]>([])
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [ratingOrder, setRatingOrder] = useState<Order | null>(null)
+  const [rating, setRating] = useState(0)
+  const [review, setReview] = useState("")
 
   useEffect(() => {
     if (!user || user.role !== "vendor") {
@@ -42,7 +55,7 @@ export default function VendorOrdersPage() {
       return
     }
 
-    // Mock orders data
+    // Mock orders data with tracking
     setOrders([
       {
         id: "1",
@@ -52,10 +65,17 @@ export default function VendorOrdersPage() {
           { productName: "Onions", quantity: 5, price: 30, unit: "kg" },
         ],
         total: 550,
-        status: "pending",
+        status: "shipped",
         orderDate: "2024-01-10",
         deliveryDate: "2024-01-15",
         isGroupOrder: false,
+        trackingSteps: [
+          { step: "Order Placed", completed: true, timestamp: "2024-01-10 10:00 AM" },
+          { step: "Order Confirmed", completed: true, timestamp: "2024-01-10 11:30 AM" },
+          { step: "Preparing Order", completed: true, timestamp: "2024-01-11 09:00 AM" },
+          { step: "Out for Delivery", completed: true, timestamp: "2024-01-12 08:00 AM" },
+          { step: "Delivered", completed: false },
+        ],
       },
       {
         id: "2",
@@ -69,6 +89,13 @@ export default function VendorOrdersPage() {
         orderDate: "2024-01-08",
         deliveryDate: "2024-01-12",
         isGroupOrder: true,
+        trackingSteps: [
+          { step: "Order Placed", completed: true, timestamp: "2024-01-08 02:00 PM" },
+          { step: "Order Confirmed", completed: true, timestamp: "2024-01-08 03:15 PM" },
+          { step: "Preparing Order", completed: false },
+          { step: "Out for Delivery", completed: false },
+          { step: "Delivered", completed: false },
+        ],
       },
       {
         id: "3",
@@ -80,6 +107,14 @@ export default function VendorOrdersPage() {
         deliveryDate: "2024-01-10",
         isGroupOrder: false,
         rating: 5,
+        review: "Excellent quality rice, delivered on time!",
+        trackingSteps: [
+          { step: "Order Placed", completed: true, timestamp: "2024-01-05 11:00 AM" },
+          { step: "Order Confirmed", completed: true, timestamp: "2024-01-05 12:00 PM" },
+          { step: "Preparing Order", completed: true, timestamp: "2024-01-06 10:00 AM" },
+          { step: "Out for Delivery", completed: true, timestamp: "2024-01-09 08:00 AM" },
+          { step: "Delivered", completed: true, timestamp: "2024-01-10 02:00 PM" },
+        ],
       },
       {
         id: "4",
@@ -90,6 +125,14 @@ export default function VendorOrdersPage() {
         orderDate: "2024-01-03",
         deliveryDate: "2024-01-08",
         isGroupOrder: false,
+        rejectionReason: "Product out of stock. Will be available next week.",
+        trackingSteps: [
+          { step: "Order Placed", completed: true, timestamp: "2024-01-03 09:00 AM" },
+          { step: "Order Confirmed", completed: false },
+          { step: "Preparing Order", completed: false },
+          { step: "Out for Delivery", completed: false },
+          { step: "Delivered", completed: false },
+        ],
       },
     ])
   }, [user, router])
@@ -100,6 +143,8 @@ export default function VendorOrdersPage() {
         return <Clock className="w-4 h-4" />
       case "confirmed":
         return <CheckCircle className="w-4 h-4" />
+      case "shipped":
+        return <Truck className="w-4 h-4" />
       case "delivered":
         return <Package className="w-4 h-4" />
       case "rejected":
@@ -115,6 +160,8 @@ export default function VendorOrdersPage() {
         return "default"
       case "confirmed":
         return "secondary"
+      case "shipped":
+        return "default"
       case "delivered":
         return "default"
       case "rejected":
@@ -129,8 +176,31 @@ export default function VendorOrdersPage() {
     return orders.filter((order) => order.status === status)
   }
 
-  const handleRateSupplier = (orderId: string, rating: number) => {
-    setOrders(orders.map((order) => (order.id === orderId ? { ...order, rating } : order)))
+  const getTrackingProgress = (steps: Order["trackingSteps"]) => {
+    const completedSteps = steps.filter((step) => step.completed).length
+    return (completedSteps / steps.length) * 100
+  }
+
+  const handleRateSupplier = async () => {
+    if (!ratingOrder || rating === 0) {
+      toast({
+        title: "Please provide a rating",
+        description: "Select at least 1 star to rate the supplier",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setOrders(orders.map((order) => (order.id === ratingOrder.id ? { ...order, rating, review } : order)))
+
+    toast({
+      title: "Rating submitted!",
+      description: "Thank you for your feedback",
+    })
+
+    setRatingOrder(null)
+    setRating(0)
+    setReview("")
   }
 
   if (!user) return null
@@ -159,15 +229,16 @@ export default function VendorOrdersPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="all">All Orders</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
             <TabsTrigger value="confirmed">Confirmed</TabsTrigger>
+            <TabsTrigger value="shipped">Shipped</TabsTrigger>
             <TabsTrigger value="delivered">Delivered</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
 
-          {["all", "pending", "confirmed", "delivered", "rejected"].map((status) => (
+          {["all", "pending", "confirmed", "shipped", "delivered", "rejected"].map((status) => (
             <TabsContent key={status} value={status}>
               <div className="space-y-4">
                 {filterOrdersByStatus(status).length === 0 ? (
@@ -212,7 +283,8 @@ export default function VendorOrdersPage() {
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-3">
+                        <div className="space-y-4">
+                          {/* Order Items */}
                           <div>
                             <h4 className="font-medium mb-2">Items:</h4>
                             <div className="space-y-1">
@@ -226,6 +298,64 @@ export default function VendorOrdersPage() {
                               ))}
                             </div>
                           </div>
+
+                          {/* Tracking Progress */}
+                          {(order.status === "confirmed" ||
+                            order.status === "shipped" ||
+                            order.status === "delivered") && (
+                            <div>
+                              <div className="flex justify-between items-center mb-2">
+                                <h4 className="font-medium">Order Progress</h4>
+                                <span className="text-sm text-gray-600">
+                                  {Math.round(getTrackingProgress(order.trackingSteps))}% Complete
+                                </span>
+                              </div>
+                              <Progress value={getTrackingProgress(order.trackingSteps)} className="mb-3" />
+                              <div className="space-y-2">
+                                {order.trackingSteps.map((step, index) => (
+                                  <div
+                                    key={index}
+                                    className={cn(
+                                      "flex items-center space-x-3 text-sm",
+                                      step.completed ? "text-green-600" : "text-gray-400",
+                                    )}
+                                  >
+                                    <div
+                                      className={cn(
+                                        "w-2 h-2 rounded-full",
+                                        step.completed ? "bg-green-500" : "bg-gray-300",
+                                      )}
+                                    />
+                                    <span className="flex-1">{step.step}</span>
+                                    {step.timestamp && <span className="text-xs text-gray-500">{step.timestamp}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Rejection Reason */}
+                          {order.status === "rejected" && order.rejectionReason && (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                              <h4 className="font-medium text-red-800 mb-1">Rejection Reason:</h4>
+                              <p className="text-sm text-red-700">{order.rejectionReason}</p>
+                            </div>
+                          )}
+
+                          {/* Existing Rating/Review */}
+                          {order.rating && (
+                            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <span className="text-sm font-medium">Your Rating:</span>
+                                <div className="flex">
+                                  {[...Array(order.rating)].map((_, i) => (
+                                    <Star key={i} className="w-4 h-4 fill-current text-yellow-400" />
+                                  ))}
+                                </div>
+                              </div>
+                              {order.review && <p className="text-sm text-gray-700">{order.review}</p>}
+                            </div>
+                          )}
 
                           <div className="flex justify-between items-center pt-3 border-t">
                             <div className="text-sm text-gray-600">Delivery Date: {order.deliveryDate}</div>
@@ -278,42 +408,16 @@ export default function VendorOrdersPage() {
                               </Dialog>
 
                               {order.status === "delivered" && !order.rating && (
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button size="sm">Rate Supplier</Button>
-                                  </DialogTrigger>
-                                  <DialogContent>
-                                    <DialogHeader>
-                                      <DialogTitle>Rate {order.supplierName}</DialogTitle>
-                                      <DialogDescription>How was your experience with this supplier?</DialogDescription>
-                                    </DialogHeader>
-                                    <div className="space-y-4">
-                                      <div className="flex justify-center space-x-2">
-                                        {[1, 2, 3, 4, 5].map((rating) => (
-                                          <Button
-                                            key={rating}
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleRateSupplier(order.id, rating)}
-                                          >
-                                            <Star className="w-6 h-6 fill-current text-yellow-400" />
-                                          </Button>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </DialogContent>
-                                </Dialog>
-                              )}
-
-                              {order.rating && (
-                                <div className="flex items-center space-x-1">
-                                  <span className="text-sm">Rated:</span>
-                                  <div className="flex">
-                                    {[...Array(order.rating)].map((_, i) => (
-                                      <Star key={i} className="w-4 h-4 fill-current text-yellow-400" />
-                                    ))}
-                                  </div>
-                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setRatingOrder(order)
+                                    setRating(0)
+                                    setReview("")
+                                  }}
+                                >
+                                  Rate & Review
+                                </Button>
                               )}
                             </div>
                           </div>
@@ -327,6 +431,54 @@ export default function VendorOrdersPage() {
           ))}
         </Tabs>
       </div>
+
+      {/* Rating Dialog */}
+      <Dialog open={!!ratingOrder} onOpenChange={() => setRatingOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rate & Review {ratingOrder?.supplierName}</DialogTitle>
+            <DialogDescription>Share your experience with this supplier</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-base font-medium">Rating</Label>
+              <div className="flex space-x-1 mt-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button key={star} onClick={() => setRating(star)} className="focus:outline-none">
+                    <Star
+                      className={cn(
+                        "w-8 h-8 transition-colors",
+                        star <= rating ? "text-yellow-400 fill-current" : "text-gray-300",
+                      )}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="review">Review (Optional)</Label>
+              <Textarea
+                id="review"
+                placeholder="Share your experience with this supplier..."
+                value={review}
+                onChange={(e) => setReview(e.target.value)}
+                className="mt-2"
+                rows={4}
+              />
+            </div>
+
+            <div className="flex space-x-2">
+              <Button onClick={handleRateSupplier} className="flex-1">
+                Submit Rating
+              </Button>
+              <Button variant="outline" onClick={() => setRatingOrder(null)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

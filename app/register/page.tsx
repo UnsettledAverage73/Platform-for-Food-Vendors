@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useAuth } from "@/components/auth-provider"
+import { useLanguage } from "@/components/language-provider"
+import { LanguageSelector } from "@/components/language-selector"
 import { useToast } from "@/hooks/use-toast"
 import { ShoppingCart, Eye, EyeOff } from "lucide-react"
 
@@ -26,6 +28,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
 
   const { register } = useAuth()
+  const { t } = useLanguage()
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -42,8 +45,8 @@ export default function RegisterPage() {
 
     if (password !== confirmPassword) {
       toast({
-        title: "Password mismatch",
-        description: "Passwords do not match",
+        title: t("notifications.passwordMismatch"),
+        description: t("notifications.passwordsDontMatch"),
         variant: "destructive",
       })
       return
@@ -51,8 +54,8 @@ export default function RegisterPage() {
 
     if (password.length < 6) {
       toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters",
+        title: t("notifications.passwordTooShort"),
+        description: t("notifications.passwordMinLength"),
         variant: "destructive",
       })
       return
@@ -64,21 +67,21 @@ export default function RegisterPage() {
       const success = await register(email, password, name, role, phone)
       if (success) {
         toast({
-          title: "Registration successful!",
-          description: "Welcome to BazarBuddy",
+          title: t("notifications.registrationSuccessful"),
+          description: t("notifications.welcomeToBazarBuddy"),
         })
         router.push("/dashboard")
       } else {
         toast({
-          title: "Registration failed",
-          description: "Please try again",
+          title: t("notifications.registrationFailed"),
+          description: t("notifications.tryAgain"),
           variant: "destructive",
         })
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
+        title: t("common.error"),
+        description: t("notifications.somethingWentWrong"),
         variant: "destructive",
       })
     } finally {
@@ -90,23 +93,26 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center">
-              <ShoppingCart className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center">
+                <ShoppingCart className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-2xl font-bold">BazarBuddy</span>
             </div>
-            <span className="text-2xl font-bold">BazarBuddy</span>
+            <LanguageSelector />
           </div>
-          <CardTitle>Create Account</CardTitle>
-          <CardDescription>Join BazarBuddy and start your journey</CardDescription>
+          <CardTitle>{t("auth.createAccount")}</CardTitle>
+          <CardDescription>{t("auth.joinBazarBuddy")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name">{t("auth.fullName")}</Label>
               <Input
                 id="name"
                 type="text"
-                placeholder="Enter your full name"
+                placeholder={t("auth.enterFullName")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -114,11 +120,11 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("auth.email")}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder={t("auth.enterEmail")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -126,7 +132,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone">{t("auth.phoneNumber")}</Label>
               <Input
                 id="phone"
                 type="tel"
@@ -137,26 +143,26 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-3">
-              <Label>I am a:</Label>
+              <Label>{t("auth.iAm")}</Label>
               <RadioGroup value={role} onValueChange={(value: "vendor" | "supplier") => setRole(value)}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="vendor" id="vendor" />
-                  <Label htmlFor="vendor">Street Food Vendor</Label>
+                  <Label htmlFor="vendor">{t("auth.streetFoodVendor")}</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="supplier" id="supplier" />
-                  <Label htmlFor="supplier">Raw Material Supplier</Label>
+                  <Label htmlFor="supplier">{t("auth.rawMaterialSupplier")}</Label>
                 </div>
               </RadioGroup>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("auth.password")}</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Create a password"
+                  placeholder={t("auth.createPassword")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -174,12 +180,12 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword">{t("auth.confirmPassword")}</Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
+                  placeholder={t("auth.confirmYourPassword")}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -197,15 +203,15 @@ export default function RegisterPage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Create Account"}
+              {loading ? t("auth.creatingAccount") : t("auth.createAccount")}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm">
             <p className="text-gray-600">
-              Already have an account?{" "}
+              {t("auth.alreadyHaveAccount")}{" "}
               <Link href="/login" className="text-orange-500 hover:underline">
-                Sign in
+                {t("auth.signIn")}
               </Link>
             </p>
           </div>
