@@ -131,8 +131,8 @@ export default function LoginPage() {
               <p>
                 <strong>{t("auth.supplier")}:</strong> supplier@test.com / password
               </p>
-            </div> */}
-          </div>
+            </div> 
+          </div>*/}
         </CardContent>
       </Card>
     </div>
