@@ -1,47 +1,46 @@
-"use client"
+// components/auth-provider.tsx
+"use client";
 
-import type React from "react"
-
-import { createContext, useContext, useEffect, useState } from "react"
+import React, { createContext, useContext, useEffect, useState } from "react";
 
 interface User {
-  id: string
-  email: string
-  name: string
-  role: "vendor" | "supplier"
-  phone?: string
+  id: string;
+  email: string;
+  name: string;
+  role: "vendor" | "supplier";
+  phone?: string;
 }
 
 interface AuthContextType {
-  user: User | null
-  login: (email: string, password: string) => Promise<boolean>
+  user: User | null;
+  login: (email: string, password: string) => Promise<boolean>;
   register: (
     email: string,
     password: string,
     name: string,
     role: "vendor" | "supplier",
-    phone?: string,
-  ) => Promise<boolean>
-  logout: () => void
-  loading: boolean
+    phone?: string
+  ) => Promise<boolean>;
+  logout: () => void;
+  loading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored auth token
-    const token = localStorage.getItem("auth-token")
-    const userData = localStorage.getItem("user-data")
+    const token = localStorage.getItem("auth-token");
+    const userData = localStorage.getItem("user-data");
+    const isLoggedIn = localStorage.getItem("is-logged-in") === "true";
 
-    if (token && userData) {
-      setUser(JSON.parse(userData))
+    if (token && userData && isLoggedIn) {
+      setUser(JSON.parse(userData));
     }
-    setLoading(false)
-  }, [])
+    setLoading(false);
+  }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -51,22 +50,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+
       const data = await res.json();
       if (res.ok && data.token) {
-        // You may want to fetch user details here if not returned
-        setUser({
-          id: "", // You can fetch user id from backend if needed
+        const user: User = {
+          id: data.id || "", // Update this if your backend returns an id
           email,
-          name: "", // You can fetch user name from backend if needed
+          name: data.name || "", // Update this if your backend returns a name
           role: data.role,
-        });
+          phone: data.phone || "",
+        };
+
+        setUser(user);
         localStorage.setItem("auth-token", data.token);
-        localStorage.setItem("user-data", JSON.stringify({
-          id: "",
-          email,
-          name: "",
-          role: data.role,
-        }));
+        localStorage.setItem("user-data", JSON.stringify(user));
+        localStorage.setItem("is-logged-in", "true");
         return true;
       }
       return false;
@@ -80,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     name: string,
     role: "vendor" | "supplier",
-    phone?: string,
+    phone?: string
   ): Promise<boolean> => {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -91,7 +89,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await res.json();
       if (res.ok) {
-        // Optionally, auto-login after registration
         return await login(email, password);
       }
       return false;
@@ -101,18 +98,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    setUser(null)
-    localStorage.removeItem("auth-token")
-    localStorage.removeItem("user-data")
-  }
+    setUser(null);
+    localStorage.removeItem("auth-token");
+    localStorage.removeItem("user-data");
+    localStorage.removeItem("is-logged-in");
+  };
 
-  return <AuthContext.Provider value={{ user, login, register, logout, loading }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
+  console.log(context);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
+  return context;
 }

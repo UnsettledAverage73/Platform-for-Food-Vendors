@@ -55,87 +55,45 @@ export default function VendorOrdersPage() {
       return
     }
 
-    // Mock orders data with tracking
-    setOrders([
-      {
-        id: "1",
-        supplierName: "Fresh Vegetables Co.",
-        items: [
-          { productName: "Fresh Tomatoes", quantity: 10, price: 40, unit: "kg" },
-          { productName: "Onions", quantity: 5, price: 30, unit: "kg" },
-        ],
-        total: 550,
-        status: "shipped",
-        orderDate: "2024-01-10",
-        deliveryDate: "2024-01-15",
-        isGroupOrder: false,
-        trackingSteps: [
-          { step: "Order Placed", completed: true, timestamp: "2024-01-10 10:00 AM" },
-          { step: "Order Confirmed", completed: true, timestamp: "2024-01-10 11:30 AM" },
-          { step: "Preparing Order", completed: true, timestamp: "2024-01-11 09:00 AM" },
-          { step: "Out for Delivery", completed: true, timestamp: "2024-01-12 08:00 AM" },
-          { step: "Delivered", completed: false },
-        ],
-      },
-      {
-        id: "2",
-        supplierName: "Spice Masters",
-        items: [
-          { productName: "Turmeric Powder", quantity: 2, price: 120, unit: "kg" },
-          { productName: "Red Chili Powder", quantity: 1, price: 150, unit: "kg" },
-        ],
-        total: 390,
-        status: "confirmed",
-        orderDate: "2024-01-08",
-        deliveryDate: "2024-01-12",
-        isGroupOrder: true,
-        trackingSteps: [
-          { step: "Order Placed", completed: true, timestamp: "2024-01-08 02:00 PM" },
-          { step: "Order Confirmed", completed: true, timestamp: "2024-01-08 03:15 PM" },
-          { step: "Preparing Order", completed: false },
-          { step: "Out for Delivery", completed: false },
-          { step: "Delivered", completed: false },
-        ],
-      },
-      {
-        id: "3",
-        supplierName: "Grain Suppliers Ltd",
-        items: [{ productName: "Basmati Rice", quantity: 25, price: 80, unit: "kg" }],
-        total: 2000,
-        status: "delivered",
-        orderDate: "2024-01-05",
-        deliveryDate: "2024-01-10",
-        isGroupOrder: false,
-        rating: 5,
-        review: "Excellent quality rice, delivered on time!",
-        trackingSteps: [
-          { step: "Order Placed", completed: true, timestamp: "2024-01-05 11:00 AM" },
-          { step: "Order Confirmed", completed: true, timestamp: "2024-01-05 12:00 PM" },
-          { step: "Preparing Order", completed: true, timestamp: "2024-01-06 10:00 AM" },
-          { step: "Out for Delivery", completed: true, timestamp: "2024-01-09 08:00 AM" },
-          { step: "Delivered", completed: true, timestamp: "2024-01-10 02:00 PM" },
-        ],
-      },
-      {
-        id: "4",
-        supplierName: "Oil & Ghee Store",
-        items: [{ productName: "Sunflower Oil", quantity: 5, price: 140, unit: "liter" }],
-        total: 700,
-        status: "rejected",
-        orderDate: "2024-01-03",
-        deliveryDate: "2024-01-08",
-        isGroupOrder: false,
-        rejectionReason: "Product out of stock. Will be available next week.",
-        trackingSteps: [
-          { step: "Order Placed", completed: true, timestamp: "2024-01-03 09:00 AM" },
-          { step: "Order Confirmed", completed: false },
-          { step: "Preparing Order", completed: false },
-          { step: "Out for Delivery", completed: false },
-          { step: "Delivered", completed: false },
-        ],
-      },
-    ])
-  }, [user, router])
+    // Fetch orders from backend
+    const fetchOrders = async () => {
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL;
+        const token = localStorage.getItem("auth-token");
+        const res = await fetch(`${API_URL}/api/orders`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!res.ok) throw new Error("Failed to fetch orders");
+        const data = await res.json();
+        setOrders(
+          data.map((o: any) => ({
+            id: o._id,
+            supplierName: o.items[0]?.supplierName || "",
+            items: o.items.map((item: any) => ({
+              productName: item.productName,
+              quantity: item.quantity,
+              price: item.price,
+              unit: item.unit,
+            })),
+            total: o.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0),
+            status: o.status,
+            orderDate: o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "",
+            deliveryDate: o.deliveryDate ? new Date(o.deliveryDate).toLocaleDateString() : "",
+            isGroupOrder: o.isGroupOrder,
+            rating: o.rating,
+            review: o.review,
+            trackingSteps: [], // You can implement tracking if available in backend
+            rejectionReason: o.rejectionReason,
+          }))
+        );
+      } catch (err) {
+        setOrders([]);
+      }
+    };
+    fetchOrders();
+  }, [user, router]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

@@ -1,74 +1,108 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/components/auth-provider"
-import { useLanguage } from "@/components/language-provider"
-import { LanguageSelector } from "@/components/language-selector"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ShoppingCart, Search, Star, Package, LogOut, User, ShoppingBag, BarChart3 } from "lucide-react"
-import Link from "next/link"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth-provider";
+import { useLanguage } from "@/components/language-provider";
+import { LanguageSelector } from "@/components/language-selector";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  ShoppingCart,
+  Search,
+  Star,
+  Package,
+  LogOut,
+  User,
+  ShoppingBag,
+  BarChart3,
+} from "lucide-react";
+import Link from "next/link";
 
 interface Supplier {
-  id: string
-  name: string
-  rating: number
-  categories: string[]
-  location: string
-  verified: boolean
-  totalProducts: number
-  avgPrice: number
-  deliveryTime: string
+  id: string;
+  name: string;
+  rating: number;
+  categories: string[];
+  location: string;
+  verified: boolean;
+  totalProducts: number;
+  avgPrice: number;
+  deliveryTime: string;
 }
 
 interface Product {
-  id: string
-  name: string
-  price: number
-  unit: string
-  supplierId: string
-  supplierName: string
-  category: string
-  rating: number
-  inStock: boolean
+  id: string;
+  name: string;
+  price: number;
+  unit: string;
+  supplierId: string;
+  supplierName: string;
+  category: string;
+  rating: number;
+  inStock: boolean;
 }
 
 export default function VendorDashboard() {
-  const { user, logout } = useAuth()
-  const { t } = useLanguage()
-  const router = useRouter()
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("all")
-  const [sortBy, setSortBy] = useState("rating")
-  const [showComparison, setShowComparison] = useState(false)
-  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([])
+  const { user, logout } = useAuth();
+  const { t } = useLanguage();
+  const router = useRouter();
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("rating");
+  const [showComparison, setShowComparison] = useState(false);
+  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
 
   useEffect(() => {
     if (!user || user.role !== "vendor") {
-      router.push("/login")
-      return
+      router.push("/login");
+      return;
     }
 
     // Fetch suppliers from backend
     const fetchSuppliers = async () => {
       try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL
-        const token = localStorage.getItem("auth-token")
+        const API_URL = process.env.NEXT_PUBLIC_API_URL;
+        const token = localStorage.getItem("auth-token");
         const res = await fetch(`${API_URL}/api/suppliers`, {
           headers: {
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
-        })
-        if (!res.ok) throw new Error("Failed to fetch suppliers")
-        const data = await res.json()
+        });
+        if (!res.ok) throw new Error("Failed to fetch suppliers");
+        const data = await res.json();
         // Map backend fields to frontend Supplier interface
         setSuppliers(
           data.map((s: any) => ({
@@ -82,50 +116,55 @@ export default function VendorDashboard() {
             avgPrice: s.avgPrice || 0, // You may want to fetch this separately
             deliveryTime: s.deliveryTime || "",
           }))
-        )
+        );
       } catch (err) {
-        setSuppliers([])
+        setSuppliers([]);
       }
-    }
-    fetchSuppliers()
+    };
+    fetchSuppliers();
     // Remove mock products for now
-    setProducts([])
-  }, [user, router])
+    setProducts([]);
+  }, [user, router]);
 
   const filteredSuppliers = suppliers.filter((supplier) => {
     const matchesSearch =
       supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.categories.some((cat) => cat.toLowerCase().includes(searchTerm.toLowerCase()))
-    const matchesCategory = categoryFilter === "all" || supplier.categories.includes(categoryFilter)
-    return matchesSearch && matchesCategory
-  })
+      supplier.categories.some((cat) =>
+        cat.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    const matchesCategory =
+      categoryFilter === "all" || supplier.categories.includes(categoryFilter);
+    return matchesSearch && matchesCategory;
+  });
 
   const sortedSuppliers = [...filteredSuppliers].sort((a, b) => {
     switch (sortBy) {
       case "rating":
-        return b.rating - a.rating
+        return b.rating - a.rating;
       case "price":
-        return a.avgPrice - b.avgPrice
+        return a.avgPrice - b.avgPrice;
       case "delivery":
-        return a.deliveryTime.localeCompare(b.deliveryTime)
+        return a.deliveryTime.localeCompare(b.deliveryTime);
       default:
-        return 0
+        return 0;
     }
-  })
+  });
 
   const handleSupplierSelect = (supplierId: string) => {
     setSelectedSuppliers(
       (prev) =>
-        prev.includes(supplierId) ? prev.filter((id) => id !== supplierId) : [...prev, supplierId].slice(0, 3), // Max 3 suppliers for comparison
-    )
-  }
+        prev.includes(supplierId)
+          ? prev.filter((id) => id !== supplierId)
+          : [...prev, supplierId].slice(0, 3) // Max 3 suppliers for comparison
+    );
+  };
 
   const handleLogout = () => {
-    logout()
-    router.push("/")
-  }
+    logout();
+    router.push("/");
+  };
 
-  if (!user) return null
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -140,7 +179,7 @@ export default function VendorDashboard() {
                 </div>
                 <h1 className="text-2xl font-bold text-gray-900">BazarBuddy</h1>
               </div>
-              <Badge variant="secondary">{t("supplier.supplierDashboard")}</Badge>
+              <Badge variant="secondary">{t("Vendor Dashboard")}</Badge>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -197,12 +236,18 @@ export default function VendorDashboard() {
               <SelectValue placeholder={t("dashboard.filterByCategory")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t("dashboard.allCategories")}</SelectItem>
-              <SelectItem value="Vegetables">{t("dashboard.vegetables")}</SelectItem>
+              <SelectItem value="all">
+                {t("dashboard.allCategories")}
+              </SelectItem>
+              <SelectItem value="Vegetables">
+                {t("dashboard.vegetables")}
+              </SelectItem>
               <SelectItem value="Fruits">{t("dashboard.fruits")}</SelectItem>
               <SelectItem value="Spices">{t("dashboard.spices")}</SelectItem>
               <SelectItem value="Rice">{t("dashboard.riceGrains")}</SelectItem>
-              <SelectItem value="Cooking Oil">{t("dashboard.cookingOil")}</SelectItem>
+              <SelectItem value="Cooking Oil">
+                {t("dashboard.cookingOil")}
+              </SelectItem>
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
@@ -212,10 +257,16 @@ export default function VendorDashboard() {
             <SelectContent>
               <SelectItem value="rating">{t("dashboard.rating")}</SelectItem>
               <SelectItem value="price">{t("dashboard.price")}</SelectItem>
-              <SelectItem value="delivery">{t("dashboard.deliveryTime")}</SelectItem>
+              <SelectItem value="delivery">
+                {t("dashboard.deliveryTime")}
+              </SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={() => setShowComparison(true)} disabled={selectedSuppliers.length < 2}>
+          <Button
+            variant="outline"
+            onClick={() => setShowComparison(true)}
+            disabled={selectedSuppliers.length < 2}
+          >
             <BarChart3 className="w-4 h-4 mr-2" />
             {t("dashboard.compare")} ({selectedSuppliers.length})
           </Button>
@@ -224,7 +275,10 @@ export default function VendorDashboard() {
         {/* Suppliers Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedSuppliers.map((supplier) => (
-            <Card key={supplier.id} className="hover:shadow-lg transition-shadow">
+            <Card
+              key={supplier.id}
+              className="hover:shadow-lg transition-shadow"
+            >
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex items-start space-x-3">
@@ -248,17 +302,25 @@ export default function VendorDashboard() {
                   </div>
                   <div className="flex items-center">
                     <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span className="ml-1 text-sm font-medium">{supplier.rating}</span>
+                    <span className="ml-1 text-sm font-medium">
+                      {supplier.rating}
+                    </span>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-gray-600 mb-2">{t("dashboard.categories")}:</p>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {t("dashboard.categories")}:
+                    </p>
                     <div className="flex flex-wrap gap-1">
                       {supplier.categories.map((category) => (
-                        <Badge key={category} variant="outline" className="text-xs">
+                        <Badge
+                          key={category}
+                          variant="outline"
+                          className="text-xs"
+                        >
                           {category}
                         </Badge>
                       ))}
@@ -282,7 +344,9 @@ export default function VendorDashboard() {
                 </div>
 
                 <Button className="w-full mt-4" asChild>
-                  <Link href={`/supplier/${supplier.id}/products`}>{t("dashboard.viewProducts")}</Link>
+                  <Link href={`/supplier/${supplier.id}/products`}>
+                    {t("dashboard.viewProducts")}
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
@@ -296,7 +360,9 @@ export default function VendorDashboard() {
               <DialogTitle>
                 {t("dashboard.compare")} {t("dashboard.suppliers")}
               </DialogTitle>
-              <DialogDescription>Compare selected suppliers side by side</DialogDescription>
+              <DialogDescription>
+                Compare selected suppliers side by side
+              </DialogDescription>
             </DialogHeader>
 
             <div className="overflow-x-auto">
@@ -313,8 +379,8 @@ export default function VendorDashboard() {
                 </TableHeader>
                 <TableBody>
                   {selectedSuppliers.map((supplierId) => {
-                    const supplier = suppliers.find((s) => s.id === supplierId)
-                    if (!supplier) return null
+                    const supplier = suppliers.find((s) => s.id === supplierId);
+                    if (!supplier) return null;
 
                     return (
                       <TableRow key={supplier.id}>
@@ -339,7 +405,7 @@ export default function VendorDashboard() {
                         <TableCell>{supplier.deliveryTime}</TableCell>
                         <TableCell>{supplier.location}</TableCell>
                       </TableRow>
-                    )
+                    );
                   })}
                 </TableBody>
               </Table>
@@ -350,11 +416,15 @@ export default function VendorDashboard() {
         {sortedSuppliers.length === 0 && (
           <div className="text-center py-12">
             <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">{t("dashboard.noSuppliersFound")}</h3>
-            <p className="text-gray-600">{t("dashboard.adjustSearchCriteria")}</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {t("dashboard.noSuppliersFound")}
+            </h3>
+            <p className="text-gray-600">
+              {t("dashboard.adjustSearchCriteria")}
+            </p>
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }
