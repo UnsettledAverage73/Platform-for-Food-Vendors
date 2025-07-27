@@ -122,7 +122,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+{/*           <div className="mt-4 p-4 bg-blue-50 rounded-lg">
             <p className="text-sm text-blue-800 font-medium mb-2">{t("auth.demoAccounts")}:</p>
             <div className="text-xs text-blue-700 space-y-1">
               <p>
@@ -131,7 +131,7 @@ export default function LoginPage() {
               <p>
                 <strong>{t("auth.supplier")}:</strong> supplier@test.com / password
               </p>
-            </div>
+            </div> */}
           </div>
         </CardContent>
       </Card>
